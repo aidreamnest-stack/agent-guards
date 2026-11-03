@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Guards — Safety Harness for AI Coding Agents</title>
+  <meta name="description" content="Five standalone guards to prevent AI coding assistants from introducing regressions in production code.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            obsidian: '#090A0C',
+            canvas: '#F8FAFC',
+            subtle: '#64748B',
+            hairline: '#E2E8F0',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Strict Mobile Viewport Isolation */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      overflow-x: hidden;
+      width: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      overflow-x: hidden;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: #FFFFFF;
+      color: #090A0C;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .bg-grid {
+      background-size: 28px 28px;
+      background-image: 
+        linear-gradient(to right, rgba(226, 232, 240, 0.45) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(226, 232, 240, 0.45) 1px, transparent 1px);
+    }
+    @media (min-width: 640px) {
+      .bg-grid {
+        background-size: 32px 32px;
+      }
+    }
+
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+    }
+
+    .clean-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 4px 14px -2px rgba(0, 0, 0, 0.04);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+    }
+    @media (hover: hover) {
+      .clean-card:hover {
+        transform: translateY(-2px);
+        border-color: #CBD5E1;
+        box-shadow: 0 10px 24px -6px rgba(0, 0, 0, 0.08);
+      }
+    }
+
+    /* Scroll Reveal (Safe Progressive Enhancement: always visible on mobile, animated on sm/desktop) */
+    .reveal {
+      opacity: 1;
+      transform: none;
+    }
+    @media (min-width: 640px) {
+      .reveal {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: opacity, transform;
+      }
+      .reveal.active {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes floatBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(5px); }
+    }
+    .animate-bounce-subtle {
+      animation: floatBounce 2.2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-slate-900 selection:text-white">
+
+  <!-- Navigation -->
+  <header class="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2.5 sm:px-6 pointer-events-none">
+    <div class="max-w-4xl mx-auto glass-pill rounded-full h-11 sm:h-14 px-3 sm:px-5 flex items-center justify-between pointer-events-auto">
+      
+      <a href="#" class="flex items-center gap-2 sm:gap-2.5 shrink-0 group">
+        <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-obsidian text-white flex items-center justify-center font-mono font-bold text-[11px] sm:text-xs tracking-wider shadow-sm transition-transform group-hover:scale-105">
+          AG
+        </div>
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <span class="font-extrabold text-xs sm:text-sm tracking-tight text-obsidian">agent-guards</span>
+          <span class="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            5 Active
+          </span>
+        </div>
+      </a>
+
+      <nav class="flex items-center gap-2.5 sm:gap-5 text-xs font-medium text-slate-600">
+        <a href="#guards" class="hover:text-obsidian transition-colors hidden sm:inline">The 5 Guards</a>
+        <a href="https://github.com/aidreamnest-stack/agent-guards/blob/main/CODE_OF_CONDUCT.md" target="_blank" class="hover:text-obsidian transition-colors hidden md:inline">Conduct</a>
+        
+        <a href="https://github.com/aidreamnest-stack/agent-guards" target="_blank" class="px-2.5 py-1 sm:px-4 sm:py-2 rounded-full bg-obsidian text-white font-semibold flex items-center gap-1.5 sm:gap-2 hover:bg-slate-800 transition-all text-xs shadow-sm hover:shadow-md shrink-0">
+          <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 16 16">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          <span>Star <span class="hidden sm:inline">on GitHub</span></span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section (Desktop fills first screen, Mobile flows cleanly without clipping) -->
+  <section class="min-h-0 sm:min-h-screen flex flex-col justify-between items-center bg-grid border-b border-hairline relative px-3 sm:px-6 pt-20 pb-8 sm:pt-32 sm:pb-10 w-full">
+    
+    <div class="w-full max-w-4xl mx-auto text-center space-y-4 sm:space-y-6 my-auto py-4 sm:py-0">
+      
+      <div class="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-[10px] sm:text-xs font-semibold max-w-full">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+        <span class="sm:hidden whitespace-nowrap">For Antigravity, Cursor & Claude</span>
+        <span class="hidden sm:inline">Standalone rules for Antigravity, Cursor & Claude Code</span>
+      </div>
+
+      <h1 class="text-2xl sm:text-5xl md:text-6xl font-extrabold text-obsidian tracking-tight leading-[1.2] sm:leading-[1.12] max-w-3xl mx-auto px-1">
+        Catch what AI breaks before you merge.
+      </h1>
+
+      <p class="text-xs sm:text-base text-slate-600 max-w-xl mx-auto leading-relaxed px-2">
+        Five standalone guards that prevent AI coding tools from silently deleting checks, abandoning dead packages, and shipping regressions.
+      </p>
+
+      <!-- 1-Click Install -->
+      <div class="max-w-lg mx-auto pt-1 sm:pt-3 w-full px-1">
+        <div class="p-1 sm:p-1.5 bg-slate-900 rounded-xl sm:rounded-2xl flex items-center justify-between gap-1.5 sm:gap-2 shadow-xl border border-slate-800 transition-all hover:border-slate-700">
+          <div class="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-4 overflow-hidden font-mono text-[11px] sm:text-xs text-slate-300 min-w-0 flex-1">
+            <span class="text-sky-400 font-bold shrink-0">$</span>
+            <span id="hero-command" class="block truncate select-all text-left">git clone https://github.com/aidreamnest-stack/agent-guards.git</span>
+          </div>
+          <button onclick="copyCommand()" id="copy-btn" class="px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl bg-white hover:bg-slate-100 text-obsidian font-mono text-xs font-bold transition-all shrink-0 flex items-center gap-1 shadow-sm active:scale-95">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+            </svg>
+            <span id="copy-label">Copy</span>
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-500 pt-2 font-mono">Copy any guard into <code class="text-slate-700 bg-slate-100 px-1 py-0.5 rounded whitespace-nowrap font-bold">.agents/skills/</code></p>
+      </div>
+
+    </div>
+
+    <!-- Scroll Cue -->
+    <a href="#guards" class="flex flex-col items-center gap-1 text-slate-400 hover:text-obsidian transition-colors animate-bounce-subtle cursor-pointer group pt-4">
+      <span class="text-[10px] sm:text-[11px] font-mono tracking-wider uppercase text-slate-400 group-hover:text-slate-700 transition-colors">Scroll to explore</span>
+      <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-hover:text-obsidian transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </a>
+
+  </section>
+
+  <!-- Guards Catalog -->
+  <main id="guards" class="flex-1 max-w-4xl mx-auto px-3 sm:px-6 py-12 sm:py-24 space-y-5 sm:space-y-8 w-full scroll-mt-14 sm:scroll-mt-24">
+    
+    <div class="border-b border-hairline pb-3 sm:pb-4 reveal">
+      <h2 class="text-lg sm:text-2xl font-bold text-obsidian tracking-tight">The 5 Guards</h2>
+      <p class="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Direct explanations: problem, solution, and run command.</p>
+    </div>
+
+    <div class="space-y-4 sm:space-y-5">
+
+      <!-- Guard 1 -->
+      <div class="clean-card rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-3.5 reveal" data-delay="0">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <span class="w-6 h-6 rounded-md bg-teal-50 text-teal-700 border border-teal-200 font-mono text-xs font-bold flex items-center justify-center shrink-0">1</span>
+            <h3 class="text-base sm:text-lg font-bold text-obsidian tracking-tight">AI Slop Guard</h3>
+          </div>
+          <a href="https://github.com/aidreamnest-stack/agent-guards/tree/main/ai-slop-guard" target="_blank" class="text-xs font-mono font-bold text-teal-700 hover:underline flex items-center gap-1 self-start sm:self-auto pl-8 sm:pl-0">
+            <span>ai-slop-guard/</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p><span class="text-rose-500 font-bold">Problem: </span>AI tools frequently delete critical platform guards (<code class="bg-slate-100 px-1 rounded text-xs font-mono break-all">Platform.isIOS</code>), swallow exceptions in empty catch blocks, or re-implement existing utils with multi-line boilerplate.</p>
+          <p><span class="text-sky-600 font-bold">Solution: </span>Inspects git diffs before merging and flags any dropped platform boundaries, security checks, or suppressed errors.</p>
+          <p><span class="text-emerald-600 font-bold">How to run: </span>Run <code class="bg-slate-100 font-mono text-[11px] sm:text-xs px-1.5 py-0.5 rounded text-slate-800 break-all">node scripts/scan-diff.cjs main</code> to scan the incoming diff.</p>
+        </div>
+      </div>
+
+      <!-- Guard 2 -->
+      <div class="clean-card rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-3.5 reveal" data-delay="100">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <span class="w-6 h-6 rounded-md bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs font-bold flex items-center justify-center shrink-0">2</span>
+            <h3 class="text-base sm:text-lg font-bold text-obsidian tracking-tight">AI Fingerprint Scrubber</h3>
+          </div>
+          <a href="https://github.com/aidreamnest-stack/agent-guards/tree/main/ai-fingerprint-scrubber" target="_blank" class="text-xs font-mono font-bold text-blue-700 hover:underline flex items-center gap-1 self-start sm:self-auto pl-8 sm:pl-0">
+            <span>ai-fingerprint-scrubber/</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p><span class="text-rose-500 font-bold">Problem: </span>AI litters comments with decorative emojis, conversational narratives (<em>"Let's go ahead and..."</em>), and obvious echo comments repeating the method name.</p>
+          <p><span class="text-sky-600 font-bold">Solution: </span>Removes emoji noise, prunes redundant echo comments, and enforces the rule: <em>"Code explains WHAT, Comments explain WHY"</em>.</p>
+          <p><span class="text-emerald-600 font-bold">How to run: </span>Run <code class="bg-slate-100 font-mono text-[11px] sm:text-xs px-1.5 py-0.5 rounded text-slate-800 break-all">node scripts/scrub-fingerprints.cjs</code> to sanitize comments across your project.</p>
+        </div>
+      </div>
+
+      <!-- Guard 3 -->
+      <div class="clean-card rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-3.5 reveal" data-delay="150">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <span class="w-6 h-6 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono text-xs font-bold flex items-center justify-center shrink-0">3</span>
+            <h3 class="text-base sm:text-lg font-bold text-obsidian tracking-tight">Phantom Package Sentinel</h3>
+          </div>
+          <a href="https://github.com/aidreamnest-stack/agent-guards/tree/main/phantom-package-sentinel" target="_blank" class="text-xs font-mono font-bold text-purple-700 hover:underline flex items-center gap-1 self-start sm:self-auto pl-8 sm:pl-0">
+            <span>phantom-package-sentinel/</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p><span class="text-rose-500 font-bold">Problem: </span>AI models hallucinate non-existent package names, which attackers then register on npm and PyPI to harvest environment secrets and API keys.</p>
+          <p><span class="text-sky-600 font-bold">Solution: </span>Verifies package registration age (&lt;30 days flagged), download thresholds, and repository linkage before dependencies are installed.</p>
+          <p><span class="text-emerald-600 font-bold">How to run: </span>Run <code class="bg-slate-100 font-mono text-[11px] sm:text-xs px-1.5 py-0.5 rounded text-slate-800 break-all">node scripts/audit-manifest.cjs &lt;package-name&gt;</code> before running install commands.</p>
+        </div>
+      </div>
+
+      <!-- Guard 4 -->
+      <div class="clean-card rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-3.5 reveal" data-delay="200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <span class="w-6 h-6 rounded-md bg-amber-50 text-amber-700 border border-amber-200 font-mono text-xs font-bold flex items-center justify-center shrink-0">4</span>
+            <h3 class="text-base sm:text-lg font-bold text-obsidian tracking-tight">Orphan Dependency Guard</h3>
+          </div>
+          <a href="https://github.com/aidreamnest-stack/agent-guards/tree/main/orphan-dependency-guard" target="_blank" class="text-xs font-mono font-bold text-amber-700 hover:underline flex items-center gap-1 self-start sm:self-auto pl-8 sm:pl-0">
+            <span>orphan-dependency-guard/</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p><span class="text-rose-500 font-bold">Problem: </span>AI adds dependencies for rapid prototyping, refactors the code later, and leaves unreferenced packages abandoned in <code class="bg-slate-100 px-1 rounded text-xs font-mono break-all">package.json</code> or <code class="bg-slate-100 px-1 rounded text-xs font-mono break-all">pubspec.yaml</code>.</p>
+          <p><span class="text-sky-600 font-bold">Solution: </span>Audits all project imports against manifest declarations, highlights zero-reference packages, and estimates dead bundle weight.</p>
+          <p><span class="text-emerald-600 font-bold">How to run: </span>Run <code class="bg-slate-100 font-mono text-[11px] sm:text-xs px-1.5 py-0.5 rounded text-slate-800 break-all">node scripts/scan-orphans.cjs</code>. Dependencies are never pruned without explicit confirmation.</p>
+        </div>
+      </div>
+
+      <!-- Guard 5 -->
+      <div class="clean-card rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-3.5 reveal" data-delay="250">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <span class="w-6 h-6 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-mono text-xs font-bold flex items-center justify-center shrink-0">5</span>
+            <h3 class="text-base sm:text-lg font-bold text-obsidian tracking-tight">Mobile Revenue Guard</h3>
+          </div>
+          <a href="https://github.com/aidreamnest-stack/agent-guards/tree/main/mobile-revenue-guard" target="_blank" class="text-xs font-mono font-bold text-rose-700 hover:underline flex items-center gap-1 self-start sm:self-auto pl-8 sm:pl-0">
+            <span>mobile-revenue-guard/</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <p><span class="text-rose-500 font-bold">Problem: </span>AI misses the Google Play 72-hour purchase acknowledgement requirement, writes plain-text entitlement flags to shared preferences, or forgets server-side verification on rewarded ads.</p>
+          <p><span class="text-sky-600 font-bold">Solution: </span>Audits client billing loops, requires hardware-backed keystore/keychain entitlement storage, and validates StoreKit 2 / Google Play purchase lifecycles.</p>
+          <p><span class="text-emerald-600 font-bold">How to run: </span>Review invariants in <code class="bg-slate-100 font-mono text-[11px] sm:text-xs px-1.5 py-0.5 rounded text-slate-800 break-all">mobile-revenue-guard/SKILL.md</code> prior to production app builds.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Community -->
+    <div class="clean-card rounded-xl sm:rounded-2xl p-4 sm:p-8 space-y-2.5 sm:space-y-3 bg-gradient-to-br from-slate-50 to-white reveal" data-delay="100">
+      <div class="flex items-center gap-2 text-xs font-bold text-slate-900">
+        <svg class="w-4 h-4 text-rose-500 shrink-0 fill-current" viewBox="0 0 24 24">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+        <span>Built by a silly coder for silly, lovely coders everywhere.</span>
+      </div>
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        Found an edge-case regex bug, have an idea for a 6th guard, or want to expand the test suite? Pull requests and discussions are welcomed. See our 
+        <a href="https://github.com/aidreamnest-stack/agent-guards/blob/main/CODE_OF_CONDUCT.md" target="_blank" class="text-obsidian font-semibold underline underline-offset-2">Code of Conduct</a>.
+      </p>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-hairline bg-white py-6 sm:py-8">
+    <div class="max-w-4xl mx-auto px-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-xs text-slate-500 font-mono text-center sm:text-left">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-obsidian">agent-guards</span>
+        <span>&bull;</span>
+        <span>Open Source MIT License</span>
+      </div>
+      <div class="flex items-center gap-4 sm:gap-5 flex-wrap justify-center">
+        <a href="https://github.com/aidreamnest-stack/agent-guards" target="_blank" class="hover:text-obsidian transition-colors">GitHub Repository</a>
+        <a href="https://github.com/aidreamnest-stack/agent-guards/blob/main/CODE_OF_CONDUCT.md" target="_blank" class="hover:text-obsidian transition-colors">Code of Conduct</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function copyCommand() {
+      const text = document.getElementById('hero-command').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const label = document.getElementById('copy-label');
+        label.textContent = 'Copied! ✓';
+        setTimeout(() => {
+          label.textContent = 'Copy';
+        }, 2000);
+      });
+    }
+
+    function initReveal() {
+      if (typeof IntersectionObserver === 'undefined') {
+        document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
+        return;
+      }
+      const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const delay = parseInt(entry.target.getAttribute('data-delay') || '0', 10);
+            setTimeout(() => {
+              entry.target.classList.add('active');
+            }, delay);
+            obs.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.05,
+        rootMargin: '0px 0px 50px 0px'
+      });
+
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initReveal);
+    } else {
+      initReveal();
+    }
+  </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-# Code of Conduct: For Silly, Lovely Coders Everywhere
+# Code of Conduct: By Silly Coder for Lovely Coders Everywhere
 
 Hey friend! 👋
 

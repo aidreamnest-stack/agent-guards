@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DependencyManifestAudit",
+  "description": "Formal schema for dependency audits produced by phantom-package-sentinel.",
+  "type": "object",
+  "required": ["version", "scanned_at", "manifest_file", "packages", "summary"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "scanned_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "manifest_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PackageAudit"
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total_scanned", "approved", "needs_review", "blocked", "verdict"],
+      "properties": {
+        "total_scanned": { "type": "integer", "minimum": 0 },
+        "approved": { "type": "integer", "minimum": 0 },
+        "needs_review": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "verdict": {
+          "type": "string",
+          "enum": ["PASS", "WARN", "FAIL"]
+        }
+      }
+    }
+  },
+  "definitions": {
+    "PackageAudit": {
+      "type": "object",
+      "required": ["name", "ecosystem", "version", "risk_score", "verdict", "recommendation"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "ecosystem": {
+          "type": "string",
+          "enum": ["npm", "pub.dev", "pypi", "crates.io", "gomod"]
+        },
+        "version": { "type": "string" },
+        "age_days": { "type": ["integer", "null"], "minimum": 0 },
+        "weekly_downloads": { "type": ["integer", "null"], "minimum": 0 },
+        "has_public_repo": { "type": "boolean" },
+        "has_install_hooks": { "type": "boolean" },
+        "risk_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "verdict": {
+          "type": "string",
+          "enum": ["APPROVED", "NEEDS_REVIEW", "BLOCKED"]
+        },
+        "findings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recommendation": { "type": "string", "minLength": 5 }
+      }
+    }
+  }
+}
